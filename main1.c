@@ -71,7 +71,7 @@ void out1(logical_addy * addys){
 	FILE * out1_file = fopen("out1.txt", "w+");
 	if(out1_file == NULL){fprintf(stderr, "Error opening out1.txt\n");exit(1);}
 	for(int i = 0; i<NUM_ADDRESSES; i++){
-		fprintf(out1_file, "%u%u\n", addys[i].page_number, addys[i].offset);
+		fprintf(out1_file, "%u\n", (addys[i].page_number<<8) | addys[i].offset);
 	}
 	fclose(out1_file);
 }
