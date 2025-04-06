@@ -1,0 +1,18 @@
+int physical_memory[256][256]
+int page_table[256]
+use open_frame_num = 0
+
+to allocate to frame[open_frame_num] whenever page fault
+
+Break logical address into page# and offset#
+look into page_table[page#] if not -1 
+    write to out2.txt page_table[page#]
+    write to out3.txt physical_memory[pagetable[page#]][offset] 
+If it is -1
+    open backing store
+    read 256 bytes from backing store into physical_memory at physical_memory[open_frame_num]
+    update page_table[page_number] = open_frame_num
+    open_frame_num++;
+    read page_table[page#]
+    write to out2.txt page_table[page#]
+    write to out3.txt physical_memory[pagetable[page#]][page_table + offset] 
