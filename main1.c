@@ -162,7 +162,7 @@ void out3(char value){
     }
 
     // write physical address to out2.txt
-    fprintf(out3_file, "%3d\n", value); 
+    fprintf(out3_file, "%d\n", value); 
 }
 
 void read_from_back_store(unsigned int page_number){
