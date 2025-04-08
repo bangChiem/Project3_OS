@@ -24,7 +24,10 @@ typedef struct TLB_ENTRY_{
 	unsigned int page_number;
 	unsigned int frame_number;
 }tlb_entry;
-tlb_entry tlb[15];
+typedef struct TLB_TABLE_{
+	tlb_entry table[15];
+	int fifo;//index of entry to be replaced
+}tlb_table;
 
 //Function Declarations
 //takes an address then septerates its pnumber and offset
@@ -45,8 +48,34 @@ void read_from_back_store(unsigned int page_number);
 void resetout1and2();
 
 int main(int argc, char** argv) {
+	//open all files and check for error
+	FILE * faddy = fopen("addresses.txt","r");
+	if(faddy == NULL){fprintf(stderr,"file open error"); exit(1);}
+    FILE * out1 = fopen("out1.txt","w+");
+	if(out1 == NULL){fprintf(stderr,"file open error"); exit(1);}
+    FILE * out2 = fopen("out2.txt","w+");
+	if(out2 == NULL){fprintf(stderr,"file open error"); exit(1);}
+    FILE * out3 = fopen("out3.txt","w+");
+	if(out3 == NULL){fprintf(stderr,"file open error"); exit(1);}
+	
+	//while addresses are being read
+	unsigned int logical_address;
+	while(fscanf(faddy, "%u\n", &logical_address)!=EOF){
+    	fprintf(out1, "%d\n", logical_address);
+	}
+	
+	//close files
+	fclose(faddy);
+	faddy = NULL;
+	fclose(out1);
+	out1 = NULL;
+	fclose(out2);
+	out2 = NULL;
+	fclose(out3);
+	out3 = NULL;
 
-    // reset out2 and out3
+	/*
+	// reset out2 and out3
     resetout1and2();
     unsigned int addresses[NUM_ADDRESSES];
 	//TODO the size needs to be arbitrary not hardset to 1000
@@ -74,7 +103,8 @@ int main(int argc, char** argv) {
 
     // Output results
 	out1(addresses); // print virtual addresses
-    return 0;
+    */
+	return 0;
 }
 
 //Function Definitions
