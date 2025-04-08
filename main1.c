@@ -71,10 +71,6 @@ int main(int argc, char** argv) {
             out3(physical_memory[page_table[page_number]][offset]);
         }
     }
-
-    printf("%d", physical_memory[1][151]);
-
-
 	out1(addresses); // print virtual addresses
     return 0;
 }
