@@ -1,4 +1,4 @@
-/*
+ /*
 Bang and Patrick
 Project 3 OS
 main1
@@ -6,21 +6,25 @@ main1
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <stdbool.h>
 
 //Definitions
 #define PAGE_SIZE 256
+#define NUM_FRAMES 256
 #define TLB_SIZE 16
 
-char physical_memory[256][256];
-unsigned int page_table[256];
-int open_frame_num = 0;
+char physical_memory[NUM_FRAMES][PAGE_SIZE];
+unsigned int page_table[NUM_FRAMES];
+unsigned int frame_next = 0;
+bool pages_loop = false;
 
 typedef struct TLB_ENTRY_{
-	unsigned int page_number;
-	unsigned int frame_number;
+	int page_number;
+	int frame_number;
 }tlb_entry;
 tlb_entry tlb_table[TLB_SIZE] = {0}; //TODO make functions for editing tlb
 int tlb_next = 0;
+bool tlb_loop = false;
 
 //Function Declarations
 //takes an address then septerates its pnumber and offset
@@ -42,6 +46,13 @@ int tlbSearch(int page_number);
 //adds page
 void tlbAdd(int page_number, int frame_number);
 
+//Page table functions
+//looks for page in table
+int pageTableSearch(int page_number);
+//adds page to first open frame
+int pageTableAdd(int page_number);
+
+
 int main(int argc, char** argv) {
 	//open all files and check for error
 	FILE * faddy = fopen("addresses.txt","r");
@@ -52,23 +63,50 @@ int main(int argc, char** argv) {
 	if(out2 == NULL){fprintf(stderr,"file open error"); exit(1);}
     FILE * out3 = fopen("out3.txt","w+");
 	if(out3 == NULL){fprintf(stderr,"file open error"); exit(1);}
-	
+
+
 	//while addresses are being read
 	unsigned int logical_address;
 	while(fscanf(faddy, "%u\n", &logical_address)!=EOF){
     	//print logcal address
 		fprintf(out1, "%d\n", logical_address);
-		
+
 		//determine physical address
 		unsigned int physical_address;
+		unsigned int page_number;
+		unsigned int offset;
+		int frame_number;
+		extract(logical_address, &page_number, &offset);
 			//if not in tlb
-				//find element to change
+			frame_number = tlbSearch(page_number);
+			if(frame_number == -1){
+				//check page table
+				frame_number = pageTableSearch(page_number);
+				//if not in page table
+				if(frame_number == -1){
+					//add to page table
+					frame_number = pageTableAdd(page_number);
+				}
 				//add to tlb
+				tlbAdd(page_number, frame_number);
+			}
 		//printf physical address
-
+		fprintf(out2, "%u\n",(frame_number << 8)+offset);
+		
 		//determine value at physical address
 		int value;
-		//printf value
+		FILE * bin = fopen("BACKING_STORE.bin", "rb");
+		if(bin == NULL){
+			fprintf(stderr,"BACKING_STORE.bin open error");
+			exit(1);
+		}
+		fseek(bin, offset, 256*frame_number);;
+		fread(&value, sizeof(int), 1, bin);
+		fclose(bin);
+		bin = NULL;
+		//print value
+		fprintf(out3, "%d\n", value);
+		
 	}
 	
 	//close files
@@ -79,38 +117,6 @@ int main(int argc, char** argv) {
 	fclose(out2);
 	out2 = NULL;
 	fclose(out3);
-	out3 = NULL;
-
-	/*
-	// reset out2 and out3
-    resetout1and2();
-    unsigned int addresses[NUM_ADDRESSES];
-	//TODO the size needs to be arbitrary not hardset to 1000
-	loadaddys(addresses);
-    initPageTable();
-    // process every logical address
-    for (int i; i < NUM_ADDRESSES; i++){
-        unsigned int page_number;
-        unsigned int offset;
-        // extract logical addresses page number and offset
-        extract(addresses[i], &page_number, &offset);
-        // If page_table entry is not -1(page hit) write to out2 physical address
-        // and value in physical address to out3
-        if (page_table[page_number] != -1){
-            out2( (page_table[page_number] * 256) + offset);
-            out3(physical_memory[page_table[page_number]][page_number + offset]);
-        }
-        // if page_table entry is -1 (page miss)
-        else{
-            read_from_back_store(page_number);
-            out2( (page_table[page_number] * 256) + offset);
-            out3(physical_memory[page_table[page_number]][offset]);
-        }
-    }
-
-    // Output results
-	out1(addresses); // print virtual addresses
-    */
 	return 0;
 }
 
@@ -162,31 +168,6 @@ void out3(char value){
     fprintf(out3_file, "%d\n", value); 
 }
 
-void read_from_back_store(unsigned int page_number){
-    // in case of page fault open of backingstore
-    FILE *BACKING_STORE = fopen("BACKING_STORE.bin", "rb"); 
-    if (BACKING_STORE == NULL) {
-        perror("Error opening file");
-        return;
-    }
-
-    // move reader to first item in page
-    fseek(BACKING_STORE, page_number * 256, SEEK_SET); 
-    // read 256 bytes from backing store into buffer frame
-    fread(physical_memory[open_frame_num], 1, PAGE_SIZE, BACKING_STORE);
-    //update page table to point to new frame that was just loaded
-    page_table[page_number] = open_frame_num;
-    // increment open frame# by 1
-    open_frame_num++;
-    // printf("\n\nValues at page %d\n", page_number);
-    // for(int i = 1; i <= PAGE_SIZE; i++){
-    //     printf("%3d  ", physical_memory[open_frame_num][i]);
-    //     if(i % 16 == 0){printf("\n");}
-    // }
-
-    fclose(BACKING_STORE); // Close the file
-}
-
 // clear out all text in out1 and out2
 void resetout1and2(){
     FILE *file = fopen("out2.txt", "w");
@@ -197,7 +178,11 @@ void resetout1and2(){
 
 //returns frame number else -1
 int tlbSearch(int page_number){
-	for(int i = 0; i<TLB_SIZE; i++){
+	int bound = tlb_next;
+	if(pages_loop){
+		bound = TLB_SIZE;
+	}
+	for(int i = 0; i<bound; i++){
 		if(tlb_table[i].page_number == page_number)
 			return tlb_table[i].frame_number;
 	}
@@ -208,5 +193,32 @@ void tlbAdd(int page_number, int frame_number){
 	tlb_table[tlb_next].page_number = page_number;
 	tlb_table[tlb_next].frame_number = frame_number;
 	tlb_next++;
-	tlb_next%TLB_SIZE;
+	tlb_next%=TLB_SIZE;
+	if(tlb_next == 0){
+		tlb_loop = true;
+	}
+}
+
+//looks for page in table
+int pageTableSearch(int page_number){
+	int bound = frame_next;
+	if(pages_loop){
+		bound = NUM_FRAMES;
+	}
+	for(int i = 0; i<bound; i++)
+		if(page_table[i] == page_number)
+			return i;
+	return -1;
+}
+//adds page to first open frame returns frame
+//incs frame_next
+int pageTableAdd(int page_number){
+	page_table[frame_next] = page_number;
+	int val = frame_next;
+	frame_next++;
+	frame_next%=NUM_FRAMES;
+	if(frame_next == 0){
+		pages_loop = true;
+	}
+	return val;
 }
