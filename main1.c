@@ -8,34 +8,16 @@ main1
 #include <stdlib.h>
 
 //Definitions
-char physical_memory[256][256];
-int page_table[256];
-int open_frame_num = 0;
-
-//TODO number of addresses should be discovered at runtime
-//I think we could change it from an array to a linked list
-#define NUM_ADDRESSES 1000
 #define PAGE_SIZE 256
 
-// I removed the addresses struct and converted it to an array of logical addresses
-
-//TODO finish implementing TLB
-typedef struct TLB_ENTRY_{
-	unsigned int page_number;
-	unsigned int frame_number;
-}tlb_entry;
-typedef struct TLB_TABLE_{
-	tlb_entry table[15];
-	int fifo;//index of entry to be replaced
-}tlb_table;
+char physical_memory[256][256];
+unsigned int page_table[256];
+unsigned int tlb_table[16]; //TODO make functions for editing tlb
+int open_frame_num = 0;
 
 //Function Declarations
 //takes an address then septerates its pnumber and offset
 void extract(unsigned int address, unsigned int *page_number, unsigned int *offset);
-//Reads and stores from addresses.txt
-void loadaddys(unsigned int addresses[]);
-//prints logical addresses
-void out1(unsigned int addresses[]);
 // initialize page table
 void initPageTable();
 // write physical address to out2.txt
@@ -61,7 +43,19 @@ int main(int argc, char** argv) {
 	//while addresses are being read
 	unsigned int logical_address;
 	while(fscanf(faddy, "%u\n", &logical_address)!=EOF){
-    	fprintf(out1, "%d\n", logical_address);
+    	//print logcal address
+		fprintf(out1, "%d\n", logical_address);
+		
+		//determine physical address
+		unsigned int physical_address;
+			//if not in tlb
+				//find element to change
+				//add to tlb
+		//printf physical address
+
+		//determine value at physical address
+		int value;
+		//printf value
 	}
 	
 	//close files
@@ -123,46 +117,6 @@ void extract(unsigned int address, unsigned int *page_number, unsigned int *offs
     // and lower 8 bits
     *page_number = (address / 256); // First 8 bits
     *offset = address % 256;         // Last 8 bits
-}
-
-//Reads and stores from addresses.txt
-void loadaddys(unsigned int addresses[]) {
-    // Open the file "addresses.txt" in read mode
-    FILE * addys_file = fopen("addresses.txt", "r");
-    
-    // Check if the file was opened successfully
-    if (addys_file == NULL) {
-        fprintf(stderr, "Error opening addresses.txt\n");
-        exit(1);  // Exit the program if the file cannot be opened
-    }
-
-    // Loop through and read NUM_ADDRESSES addresses into the array
-    for (int i = 0; i < NUM_ADDRESSES; i++) {
-        fscanf(addys_file, "%u\n", &addresses[i]);  // Read an unsigned integer from the file
-    }
-
-    // Close the file after reading all addresses
-    fclose(addys_file);
-}
-
-//prints logical addresses
-void out1(unsigned int addresses[]) {	
-    // Open the file "out1.txt" in write mode
-    FILE * out1_file = fopen("out1.txt", "w+");
-    
-    // Check if the file was opened successfully
-    if (out1_file == NULL) {
-        fprintf(stderr, "Error opening out1.txt\n");
-        exit(1);  // Exit the program if the file cannot be opened
-    }
-
-    // Loop through the addresses array and write each address to the file
-    for (int i = 0; i < NUM_ADDRESSES; i++) {
-        fprintf(out1_file, "%u\n", addresses[i]); // Write the address directly
-    }
-
-    // Close the file after writing all addresses
-    fclose(out1_file);
 }
 
 // write physical address to out2.txt
