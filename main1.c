@@ -62,7 +62,7 @@ int main(int argc, char** argv) {
         // and value in physical address to out3
         if (page_table[page_number] != -1){
             out2( (page_table[page_number] * 256) + offset);
-            out3(physical_memory[page_table[page_number]][page_number + offset]);
+            out3(physical_memory[page_table[page_number]][offset]);
         }
         // if page_table entry is -1 (page miss)
         else{
@@ -72,7 +72,9 @@ int main(int argc, char** argv) {
         }
     }
 
-    // Output results
+    printf("%d", physical_memory[1][151]);
+
+
 	out1(addresses); // print virtual addresses
     return 0;
 }
