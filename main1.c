@@ -9,11 +9,18 @@ main1
 
 //Definitions
 #define PAGE_SIZE 256
+#define TLB_SIZE 16
 
 char physical_memory[256][256];
 unsigned int page_table[256];
-unsigned int tlb_table[16]; //TODO make functions for editing tlb
 int open_frame_num = 0;
+
+typedef struct TLB_ENTRY_{
+	unsigned int page_number;
+	unsigned int frame_number;
+}tlb_entry;
+tlb_entry tlb_table[TLB_SIZE] = {0}; //TODO make functions for editing tlb
+int tlb_next = 0;
 
 //Function Declarations
 //takes an address then septerates its pnumber and offset
@@ -28,6 +35,12 @@ void out3(char value);
 void read_from_back_store(unsigned int page_number);
 // clear out all text in out1 and out2
 void resetout1and2();
+
+//TLB functions
+//returns frame number or -1
+int tlbSearch(int page_number);
+//adds page
+void tlbAdd(int page_number, int frame_number);
 
 int main(int argc, char** argv) {
 	//open all files and check for error
@@ -180,4 +193,20 @@ void resetout1and2(){
     fclose(file);
     fopen("out3.txt", "w");
     fclose(file);
+}
+
+//returns frame number else -1
+int tlbSearch(int page_number){
+	for(int i = 0; i<TLB_SIZE; i++){
+		if(tlb_table[i].page_number == page_number)
+			return tlb_table[i].frame_number;
+	}
+	return -1;
+}
+
+void tlbAdd(int page_number, int frame_number){
+	tlb_table[tlb_next].page_number = page_number;
+	tlb_table[tlb_next].frame_number = frame_number;
+	tlb_next++;
+	tlb_next%TLB_SIZE;
 }
