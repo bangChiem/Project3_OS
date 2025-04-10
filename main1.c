@@ -130,8 +130,8 @@ int main(int argc, char** argv) {
 	fclose(out3);
 
 	//print statistics
-	printf("Page-Fault rate: %.2f\n", (float)page_faults/num_adds);
-	printf("TLB hit rate: %.3f\n", (float)tlb_hits/num_adds);
+	printf("Page faults = %d/%d, %.2f\n", page_faults, num_adds, (float)page_faults/num_adds);
+	printf("TLB hits = %d/%d, %.3f\n", tlb_hits, num_adds, (float)tlb_hits/num_adds);
 
 	return 0;
 }
