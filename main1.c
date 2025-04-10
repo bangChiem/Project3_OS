@@ -10,35 +10,27 @@ main1
 
 //Definitions
 #define PAGE_SIZE 256
-#define NUM_FRAMES 256
+#define NUM_FRAMES 256 //Value must be less than MAX_INT
 #define TLB_SIZE 16
 
 char physical_memory[NUM_FRAMES][PAGE_SIZE];
-unsigned int page_table[NUM_FRAMES];
-unsigned int frame_next = 0;
-bool pages_loop = false;
+int page_table[NUM_FRAMES];
+int frame_next = 0;
 
 typedef struct TLB_ENTRY_{
 	int page_number;
 	int frame_number;
 }tlb_entry;
 tlb_entry tlb_table[TLB_SIZE] = {0}; //TODO make functions for editing tlb
-int tlb_next = 0;
-bool tlb_loop = false;
+int tlb_next = 0;//FIFO implementation
 
 //Function Declarations
 //takes an address then septerates its pnumber and offset
 void extract(unsigned int address, unsigned int *page_number, unsigned int *offset);
-// initialize page table
-void initPageTable();
 // write physical address to out2.txt
 void out2(int physical_address);
 // write signed byte value stored in physical memory to out3.txt
 void out3(char value);
-// read frame from backing store into physical_memory
-void read_from_back_store(unsigned int page_number);
-// clear out all text in out1 and out2
-void resetout1and2();
 
 //TLB functions
 //returns frame number or -1
@@ -54,6 +46,20 @@ int pageTableAdd(int page_number);
 
 
 int main(int argc, char** argv) {
+ 	int page_faults = 0;//# of page faults
+	int tlb_hits = 0;//# of tlb hits
+	int num_adds = 0;//# of logical addreses read
+
+	//Initialize Page Table
+	for (int i = 0; i < PAGE_SIZE; i++){
+        page_table[i] = -1;
+    }
+	//Initialize TLB
+	for(int i = 0; i<TLB_SIZE; i++){
+		tlb_table[i].page_number = -1;
+		tlb_table[i].frame_number = -1;
+	}
+
 	//open all files and check for error
 	FILE * faddy = fopen("addresses.txt","r");
 	if(faddy == NULL){fprintf(stderr,"file open error"); exit(1);}
@@ -68,22 +74,28 @@ int main(int argc, char** argv) {
 	//while addresses are being read
 	unsigned int logical_address;
 	while(fscanf(faddy, "%u\n", &logical_address)!=EOF){
-    	//print logcal address
-		fprintf(out1, "%d\n", logical_address);
+    	num_adds++;
+		//print logcal address
+		fprintf(out1, "%u\n", logical_address);
 
 		//determine physical address
 		unsigned int physical_address;
 		unsigned int page_number;
 		unsigned int offset;
-		int frame_number;
+		unsigned int frame_number;
 		extract(logical_address, &page_number, &offset);
-			//if not in tlb
 			frame_number = tlbSearch(page_number);
-			if(frame_number == -1){
+			//if in tlb inc tlb_hits
+			if(frame_number<NUM_FRAMES){
+				tlb_hits++;
+			}
+			//if not in tlb
+			else if(frame_number > NUM_FRAMES){
 				//check page table
 				frame_number = pageTableSearch(page_number);
 				//if not in page table
-				if(frame_number == -1){
+				if(frame_number > NUM_FRAMES){
+					page_faults++;
 					//add to page table
 					frame_number = pageTableAdd(page_number);
 				}
@@ -94,18 +106,17 @@ int main(int argc, char** argv) {
 		fprintf(out2, "%u\n",(frame_number << 8)+offset);
 		
 		//determine value at physical address
-		int value;
 		FILE * bin = fopen("BACKING_STORE.bin", "rb");
 		if(bin == NULL){
 			fprintf(stderr,"BACKING_STORE.bin open error");
 			exit(1);
 		}
-		fseek(bin, offset, 256*frame_number);;
-		fread(&value, sizeof(int), 1, bin);
+		fseek(bin, 256*page_number,SEEK_SET);
+		fread(&physical_memory[frame_number], PAGE_SIZE, 1, bin);
 		fclose(bin);
 		bin = NULL;
 		//print value
-		fprintf(out3, "%d\n", value);
+		fprintf(out3, "%d\n", physical_memory[frame_number][offset]);
 		
 	}
 	
@@ -117,6 +128,11 @@ int main(int argc, char** argv) {
 	fclose(out2);
 	out2 = NULL;
 	fclose(out3);
+
+	//print statistics
+	printf("Page-Fault rate: %.2f\n", (float)page_faults/num_adds);
+	printf("TLB hit rate: %.3f\n", (float)tlb_hits/num_adds);
+
 	return 0;
 }
 
@@ -153,36 +169,9 @@ void out2(int physical_address){
     fprintf(out2_file, "%d\n", physical_address); 
 }
 
-// write signed byte value stored in physical memory to out3.txt
-void out3(char value){
-    // Open the file "out3.txt" in append mode
-    FILE * out3_file = fopen("out3.txt", "a+");
-
-    // Check if the file was opened successfully
-    if (out3_file == NULL) {
-        fprintf(stderr, "Error opening out3.txt\n");
-        exit(1);  // Exit the program if the file cannot be opened
-    }
-
-    // write physical address to out2.txt
-    fprintf(out3_file, "%d\n", value); 
-}
-
-// clear out all text in out1 and out2
-void resetout1and2(){
-    FILE *file = fopen("out2.txt", "w");
-    fclose(file);
-    fopen("out3.txt", "w");
-    fclose(file);
-}
-
 //returns frame number else -1
 int tlbSearch(int page_number){
-	int bound = tlb_next;
-	if(pages_loop){
-		bound = TLB_SIZE;
-	}
-	for(int i = 0; i<bound; i++){
+	for(int i = 0; i<TLB_SIZE; i++){
 		if(tlb_table[i].page_number == page_number)
 			return tlb_table[i].frame_number;
 	}
@@ -192,33 +181,27 @@ int tlbSearch(int page_number){
 void tlbAdd(int page_number, int frame_number){
 	tlb_table[tlb_next].page_number = page_number;
 	tlb_table[tlb_next].frame_number = frame_number;
+
+	//FIFO implementation
 	tlb_next++;
 	tlb_next%=TLB_SIZE;
-	if(tlb_next == 0){
-		tlb_loop = true;
-	}
 }
 
 //looks for page in table
 int pageTableSearch(int page_number){
-	int bound = frame_next;
-	if(pages_loop){
-		bound = NUM_FRAMES;
-	}
-	for(int i = 0; i<bound; i++)
+	for(int i = 0; i<NUM_FRAMES; i++)
 		if(page_table[i] == page_number)
 			return i;
-	return -1;
+	return NUM_FRAMES+1;
 }
 //adds page to first open frame returns frame
 //incs frame_next
 int pageTableAdd(int page_number){
 	page_table[frame_next] = page_number;
 	int val = frame_next;
+
+	//FIFO implementation iterates through frames
 	frame_next++;
-	frame_next%=NUM_FRAMES;
-	if(frame_next == 0){
-		pages_loop = true;
-	}
+	frame_next%=NUM_FRAMES;//Will not be used until main2
 	return val;
 }
