@@ -27,10 +27,6 @@ int tlb_next = 0;//FIFO implementation
 //Function Declarations
 //takes an address then septerates its pnumber and offset
 void extract(unsigned int address, unsigned int *page_number, unsigned int *offset);
-// write physical address to out2.txt
-void out2(int physical_address);
-// write signed byte value stored in physical memory to out3.txt
-void out3(char value);
 
 //TLB functions
 //returns frame number or -1
@@ -152,21 +148,6 @@ void extract(unsigned int address, unsigned int *page_number, unsigned int *offs
     // and lower 8 bits
     *page_number = (address / 256); // First 8 bits
     *offset = address % 256;         // Last 8 bits
-}
-
-// write physical address to out2.txt
-void out2(int physical_address){
-    // Open the file "out2.txt" in append mode
-    FILE * out2_file = fopen("out2.txt", "a+");
-
-    // Check if the file was opened successfully
-    if (out2_file == NULL) {
-        fprintf(stderr, "Error opening out2.txt\n");
-        exit(1);  // Exit the program if the file cannot be opened
-    }
-
-    // write physical address to out2.txt
-    fprintf(out2_file, "%d\n", physical_address); 
 }
 
 //returns frame number else -1
