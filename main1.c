@@ -10,18 +10,19 @@ main1
 
 //Definitions
 #define PAGE_SIZE 256
+#define FRAME_SIZE PAGE_SIZE
 #define NUM_FRAMES 256 //Value must be less than MAX_INT
 #define TLB_SIZE 16
 
 char physical_memory[NUM_FRAMES][PAGE_SIZE];
-int page_table[NUM_FRAMES];
+unsigned int page_table[NUM_FRAMES];
 int frame_next = 0;
 
 typedef struct TLB_ENTRY_{
 	int page_number;
 	int frame_number;
 }tlb_entry;
-tlb_entry tlb_table[TLB_SIZE] = {0}; //TODO make functions for editing tlb
+tlb_entry tlb_table[TLB_SIZE];
 int tlb_next = 0;//FIFO implementation
 
 //Function Declarations
@@ -29,16 +30,16 @@ int tlb_next = 0;//FIFO implementation
 void extract(unsigned int address, unsigned int *page_number, unsigned int *offset);
 
 //TLB functions
-//returns frame number or -1
-int tlbSearch(int page_number);
+//returns frame number or NUM_FRAMES
+unsigned int tlbSearch(int page_number);
 //adds page
 void tlbAdd(int page_number, int frame_number);
 
 //Page table functions
 //looks for page in table
-int pageTableSearch(int page_number);
+unsigned int pageTableSearch(int page_number);
 //adds page to first open frame
-int pageTableAdd(int page_number);
+unsigned int pageTableAdd(int page_number);
 
 
 int main(int argc, char** argv) {
@@ -47,7 +48,7 @@ int main(int argc, char** argv) {
 	int num_adds = 0;//# of logical addreses read
 
 	//Initialize Page Table
-	for (int i = 0; i < PAGE_SIZE; i++){
+	for (int i = 0; i < NUM_FRAMES; i++){
         page_table[i] = -1;
     }
 	//Initialize TLB
@@ -86,11 +87,11 @@ int main(int argc, char** argv) {
 				tlb_hits++;
 			}
 			//if not in tlb
-			else if(frame_number > NUM_FRAMES){
+			else{
 				//check page table
 				frame_number = pageTableSearch(page_number);
 				//if not in page table
-				if(frame_number > NUM_FRAMES){
+				if(frame_number >= NUM_FRAMES){
 					page_faults++;
 					//add to page table
 					frame_number = pageTableAdd(page_number);
@@ -107,7 +108,7 @@ int main(int argc, char** argv) {
 			fprintf(stderr,"BACKING_STORE.bin open error");
 			exit(1);
 		}
-		fseek(bin, 256*page_number,SEEK_SET);
+		fseek(bin, PAGE_SIZE*page_number,SEEK_SET);
 		fread(&physical_memory[frame_number], PAGE_SIZE, 1, bin);
 		fclose(bin);
 		bin = NULL;
@@ -151,12 +152,12 @@ void extract(unsigned int address, unsigned int *page_number, unsigned int *offs
 }
 
 //returns frame number else -1
-int tlbSearch(int page_number){
+unsigned int tlbSearch(int page_number){
 	for(int i = 0; i<TLB_SIZE; i++){
 		if(tlb_table[i].page_number == page_number)
 			return tlb_table[i].frame_number;
 	}
-	return -1;
+	return NUM_FRAMES;
 }
 
 void tlbAdd(int page_number, int frame_number){
@@ -169,15 +170,15 @@ void tlbAdd(int page_number, int frame_number){
 }
 
 //looks for page in table
-int pageTableSearch(int page_number){
+unsigned int pageTableSearch(int page_number){
 	for(int i = 0; i<NUM_FRAMES; i++)
 		if(page_table[i] == page_number)
 			return i;
-	return NUM_FRAMES+1;
+	return NUM_FRAMES;
 }
 //adds page to first open frame returns frame
 //incs frame_next
-int pageTableAdd(int page_number){
+unsigned int pageTableAdd(int page_number){
 	page_table[frame_next] = page_number;
 	int val = frame_next;
 
