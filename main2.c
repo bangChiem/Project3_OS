@@ -6,7 +6,6 @@ main1
 
 #include <stdio.h>
 #include <stdlib.h>
-#include <stdbool.h>
 
 //Definitions
 #define PAGE_SIZE 256
