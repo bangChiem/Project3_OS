@@ -1,7 +1,7 @@
  /*
 Bang and Patrick
 Project 3 OS
-main1
+main3
 */
 
 #include <stdio.h>
